@@ -24,10 +24,10 @@ UKF::UKF() {
   P_ = MatrixXd(5, 5);
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 30;
+  std_a_ = 10;
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 30;
+  std_yawdd_ = 10;
 
   // Laser measurement noise standard deviation position1 in m
   std_laspx_ = 0.15;
@@ -51,6 +51,8 @@ UKF::UKF() {
 
   Hint: one or more values initialized above might be wildly off...
   */
+  is_initialized_ = false;
+
 }
 
 UKF::~UKF() {}
@@ -66,6 +68,66 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   Complete this function! Make sure you switch between lidar and radar
   measurements.
   */
+  double rho;
+  double phi;
+  double rho_dot;
+
+  // Laser components
+  double px;
+  double py;
+
+  if (!is_initialized_) {
+    /**
+    TODO:
+      * Initialize the state ekf_.x_ with the first measurement.
+      * Create the covariance matrix.
+      * Remember: you'll need to convert radar from polar to cartesian coordinates.
+    */
+	  double previous_timestamp_ = measurement_pack.timestamp_;
+    // first measurement
+    x_ << 0, 0, 0, 0, 0;
+    P_ << 1, 0, 0, 0, 0,
+		  		0, 1, 0, 0, 0,
+		  		0, 0, 1, 0, 0,
+		  		0, 0, 0, 1, 0,
+          0, 0, 0, 0, 1;
+
+    if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
+      /**
+      Convert radar from polar to cartesian coordinates and initialize state.
+      */
+      rho = measurement_pack.raw_measurements_[0];
+      phi = measurement_pack.raw_measurements_[1];
+      rho_dot = measurement_pack.raw_measurements_[2];
+
+      x_(0) = rho * cos(phi);
+      x_(1) = rho * sin(phi);
+      x_(2) = 0;
+      x_(3) = 0;
+      x_(4) = 0;
+    }
+
+    else if (measurement_pack.sensor_type_ == MeasurementPackage::LASER) {
+      /**
+      Initialize state.
+      */
+      px = measurement_pack.raw_measurements_[0];
+      py = measurement_pack.raw_measurements_[1];
+
+      x_(0) = px;
+      x_(1) = py;
+      x_(2) = 0;
+      x_(3) = 0;
+      x_(4) = 0;
+    }
+
+    // done initializing, no need to predict or update
+    is_initialized_ = true;
+    return;
+  }
+
+  double dt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0; 
+  
 }
 
 /**
@@ -80,6 +142,31 @@ void UKF::Prediction(double delta_t) {
   Complete this function! Estimate the object's location. Modify the state
   vector, x_. Predict sigma points, the state, and the state covariance matrix.
   */
+  VectorXd x_aug = VectorXd(7);
+  x_aug.head(5) = x;
+  x_aug(5) = 0;
+  x_aug(5 + 1) = 0;
+
+  MatrixXd P_aug = MatrixXd(7, 7);
+  MatrixXd Q = MatrixXd(2, 2);
+  MatrixXd Xsig_aug = MatrixXd(7, 2 * 7 + 1);
+
+  P_aug.setZero();
+  P_aug.topLeftCorner(n_x, n_x) = P;
+
+  Q(0, 0) = pow(std_a, 2);
+  Q(0, 1) = 0;
+  Q(1, 0) = 0;
+  Q(1, 1) = pow(std_yawdd, 2);
+
+  MatrixXd A = P_aug.llt().matrixL();
+
+  Xsig_aug.col(0) = x_aug;
+
+  for(int i = 0; i < n_aug; ++i) {
+      Xsig_aug.col(i + 1) = x_aug + sqrt(lambda + n_aug) * A.col(i);
+      Xsig_aug.col(i + n_aug + 1) = x_aug - sqrt(lambda + n_aug) * A.col(i);
+  }
 }
 
 /**
