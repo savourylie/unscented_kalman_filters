@@ -126,7 +126,7 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     return;
   }
 
-  double dt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0; 
+  double delta_t = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0; 
   
 }
 
@@ -142,6 +142,8 @@ void UKF::Prediction(double delta_t) {
   Complete this function! Estimate the object's location. Modify the state
   vector, x_. Predict sigma points, the state, and the state covariance matrix.
   */
+
+  // Generate sigma points
   VectorXd x_aug = VectorXd(7);
   x_aug.head(5) = x;
   x_aug(5) = 0;
@@ -150,6 +152,7 @@ void UKF::Prediction(double delta_t) {
   MatrixXd P_aug = MatrixXd(7, 7);
   MatrixXd Q = MatrixXd(2, 2);
   MatrixXd Xsig_aug = MatrixXd(7, 2 * 7 + 1);
+  MatrixXd Xsig_pred = MatrixXd(5, 2 * 7 + 1);
 
   P_aug.setZero();
   P_aug.topLeftCorner(n_x, n_x) = P;
@@ -166,6 +169,48 @@ void UKF::Prediction(double delta_t) {
   for(int i = 0; i < n_aug; ++i) {
       Xsig_aug.col(i + 1) = x_aug + sqrt(lambda + n_aug) * A.col(i);
       Xsig_aug.col(i + n_aug + 1) = x_aug - sqrt(lambda + n_aug) * A.col(i);
+  }
+
+  // Predict sigma points
+  double v_k, psi_k, psi_dot_k, nu_a_k, nu_psi_ddot_k;
+
+  for (int i = 0; i < 2*n_aug + 1; ++i) {
+        VectorXd temp_vector_x = VectorXd(5);
+        VectorXd temp_vector_noise = VectorXd(5);
+        
+        v_k = Xsig_aug.col(i)(2);
+        psi_k = Xsig_aug.col(i)(3);
+        psi_dot_k = Xsig_aug.col(i)(4);
+        nu_a_k = Xsig_aug.col(i)(5);
+        nu_psi_ddot_k = Xsig_aug.col(i)(6);
+        
+        temp_vector_noise <<
+            0.5 * pow(delta_t, 2) * cos(psi_k) * nu_a_k,
+            0.5 * pow(delta_t, 2) * sin(psi_k) * nu_a_k,
+            delta_t * nu_a_k,
+            0.5 * pow(delta_t, 2) * nu_psi_ddot_k,
+            delta_t * nu_psi_ddot_k;
+            
+        if (Xsig_aug.col(i)(4) == 0) {
+            temp_vector_x <<
+            v_k * cos(psi_k) * delta_t,
+            v_k * sin(psi_k) * delta_t,
+            0,
+            0,
+            0;
+            
+        }
+      
+        else {
+            temp_vector_x <<
+            (v_k / psi_dot_k) * (sin(psi_k + psi_dot_k * delta_t) - sin(psi_k)),
+            (v_k / psi_dot_k) * (-cos(psi_k + psi_dot_k * delta_t) + cos(psi_k)),
+            0,
+            psi_dot_k * delta_t,
+            0;
+        }
+        
+        Xsig_pred.col(i) = Xsig_aug.col(i).head(n_x) + temp_vector_x + temp_vector_noise;
   }
 }
 
