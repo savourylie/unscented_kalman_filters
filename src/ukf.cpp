@@ -27,10 +27,10 @@ UKF::UKF() {
   P_ = MatrixXd(5, 5);
 
   // Process noise standard deviation longitudinal acceleration in m/s^2
-  std_a_ = 1;
+  std_a_ = 7;
 
   // Process noise standard deviation yaw acceleration in rad/s^2
-  std_yawdd_ = 1;
+  std_yawdd_ = 0.95;
 
   // Laser measurement noise standard deviation position1 in m
   std_laspx_ = 0.15;
@@ -102,12 +102,12 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
     */
 	  time_us_ = meas_package.timestamp_;
     // first measurement
-    x_ << 0, 0, 0, 0, 0;
-    P_ << 1, 0, 0, 0, 0,
-		  		0, 1, 0, 0, 0,
-		  		0, 0, 1, 0, 0,
-		  		0, 0, 0, 1, 0,
-          0, 0, 0, 0, 1;
+    x_ << 0.2, 0.4, 0, 0, 0;
+    P_ << 0.1, 0, 0, 0, 0,
+		  		0, 0.1, 0, 0, 0,
+		  		0, 0, 0.1, 0, 0,
+		  		0, 0, 0, 0.1, 0,
+          0, 0, 0, 0, 0.1;
 
     if (meas_package.sensor_type_ == MeasurementPackage::RADAR) {
       /**
@@ -179,6 +179,8 @@ void UKF::ProcessMeasurement(MeasurementPackage meas_package) {
   }
 
   time_us_ = meas_package.timestamp_;
+
+  std::cout << "psi: " << x_(3) << std::endl;
 }
 
 /**
@@ -221,7 +223,12 @@ void UKF::Prediction(double delta_t) {
   for(int i = 0; i < n_aug_; ++i) {
       Xsig_aug.col(i + 1) = x_aug + sqrt(lambda_ + n_aug_) * A.col(i);
       Xsig_aug.col(i + n_aug_ + 1) = x_aug - sqrt(lambda_ + n_aug_) * A.col(i);
+
+    //   // Normalize Xsig_aug
+    //   while (Xsig_aug.col(i)(3) > M_PI) Xsig_aug.col(i)(3) -= 2.*M_PI;
+    //   while (Xsig_aug.col(i)(3) < -M_PI) Xsig_aug.col(i)(3) += 2.*M_PI;
   }
+
   // std::cout << "current x: \n" << x_ << std::endl;
   // std::cout << "current P: \n" << P_ << std::endl;
   // std::cout << "current Q: \n" << Q << std::endl;
@@ -271,9 +278,9 @@ void UKF::Prediction(double delta_t) {
         
         Xsig_pred_.col(i) = Xsig_aug.col(i).head(n_x_) + temp_vector_x + temp_vector_noise;
 
-        // Normalize psi
-        while (Xsig_pred_.col(i)(3) > M_PI) Xsig_pred_.col(i)(3) -= 2.*M_PI;
-        while (Xsig_pred_.col(i)(3) < -M_PI) Xsig_pred_.col(i)(3) += 2.*M_PI;        
+        // // Normalize psi
+        // while (Xsig_pred_.col(i)(3) > M_PI) Xsig_pred_.col(i)(3) -= 2.*M_PI;
+        // while (Xsig_pred_.col(i)(3) < -M_PI) Xsig_pred_.col(i)(3) += 2.*M_PI;        
 
   }
 
@@ -339,7 +346,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
    px_z,
    py_z;
 
-  std::cout << "Lidar z: " << "\n" << z << "\n";
+//   std::cout << "Lidar z: " << "\n" << z << "\n";
 
   int n_z = 2;
   MatrixXd Zsig = MatrixXd(n_z, 2 * n_aug_ + 1);
@@ -398,7 +405,7 @@ void UKF::UpdateLidar(MeasurementPackage meas_package) {
   // std::cout << "Temp vector \n" << temp_vector2 << "\n";
   // std::cout << "z_diff vector \n" << z_diff << "\n";
   double nis_lidar_i = (temp_vector2 * z_diff).value();
-  std::cout << "NIS Lidar: \n" << nis_lidar_i << "\n";
+//   std::cout << "NIS Lidar: \n" << nis_lidar_i << "\n";
   nis_lidar_.push_back(nis_lidar_i);
 
   // std::cout << "Lidar R: \n" << Lidar_R << "\n";
@@ -530,7 +537,7 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
   // std::cout << "Temp vector \n" << temp_vector2 << "\n";
   // std::cout << "z_diff vector \n" << z_diff << "\n";
   double nis_radar_i = (temp_vector2 * z_diff).value();
-  std::cout << "NIS Radar: \n" << nis_radar_i << "\n";
+//   std::cout << "NIS Radar: \n" << nis_radar_i << "\n";
   nis_radar_.push_back(nis_radar_i);
 
   MatrixXd Tc = MatrixXd(n_x_, n_z);
@@ -540,9 +547,9 @@ void UKF::UpdateRadar(MeasurementPackage meas_package) {
      // state difference
       VectorXd x_diff = Xsig_pred_.col(i) - Xsig_pred_.col(0);
      
-      //angle normalization
-      while (x_diff(3) > M_PI) x_diff(3) -= 2.*M_PI;
-      while (x_diff(3) < -M_PI) x_diff(3) += 2.*M_PI;
+    //   //angle normalization
+    //   while (x_diff(3) > M_PI) x_diff(3) -= 2.*M_PI;
+    //   while (x_diff(3) < -M_PI) x_diff(3) += 2.*M_PI;
 
       Tc = Tc + weights_(i) * x_diff * (Zsig.col(i) - z_pred).transpose();
       // std::cout << "Radar WTF Tc: \n" << Tc << "\n";

@@ -132,7 +132,7 @@ int main()
 
           // Count data points
           global_counter++;
-          std::cout << "Counter: " << global_counter << std::endl;
+        //   std::cout << "Counter: " << global_counter << std::endl;
         //   std::cout << "Ground truth: \n" << ground_truth << std::endl;
 
           json msgJson;
