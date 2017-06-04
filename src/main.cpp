@@ -26,6 +26,8 @@ std::string hasData(std::string s) {
   return "";
 }
 
+int global_counter = 0;
+
 int main()
 {
   uWS::Hub h;
@@ -42,7 +44,6 @@ int main()
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
-
     if (length && length > 2 && data[0] == '4' && data[1] == '2')
     {
 
@@ -129,6 +130,11 @@ int main()
 
     	  VectorXd RMSE = tools.CalculateRMSE(estimations, ground_truth);
 
+          // Count data points
+          global_counter++;
+          std::cout << "Counter: " << global_counter << std::endl;
+        //   std::cout << "Ground truth: \n" << ground_truth << std::endl;
+
           json msgJson;
           msgJson["estimate_x"] = p_x;
           msgJson["estimate_y"] = p_y;
@@ -146,6 +152,26 @@ int main()
         std::string msg = "42[\"manual\",{}]";
         ws.send(msg.data(), msg.length(), uWS::OpCode::TEXT);
       }
+
+      // Output NIS to csv
+      if (global_counter == 499) {
+          ofstream lidar_file("nis_lidar.csv");
+          int vsize1 = ukf.nis_lidar_.size();
+          for (int n = 0; n < vsize1; n++)
+          {
+              lidar_file << ukf.nis_lidar_[n] << '\t';
+              lidar_file << "," ;
+          }
+
+          ofstream radar_file("nis_radar.csv");
+          int vsize2 = ukf.nis_radar_.size();
+          for (int n = 0; n < vsize2; n++)
+          {
+              radar_file << ukf.nis_radar_[n] << '\t';
+              radar_file << "," ;
+          }
+      }
+      
     }
 
   });

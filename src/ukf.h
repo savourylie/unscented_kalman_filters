@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <fstream>
+#include <cmath> 
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
@@ -67,6 +68,9 @@ public:
   ///* Sigma point spreading parameter
   double lambda_;
 
+  ///* NIS
+  std::vector<double> nis_lidar_;
+  std::vector<double> nis_radar_;
 
   /**
    * Constructor
